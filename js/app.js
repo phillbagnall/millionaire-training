@@ -11,12 +11,19 @@
     2000, 4000, 8000, 16000, 32000,
     64000, 125000, 250000, 500000, 1000000
   ];
-  var SAFETY_NETS = [5, 10];        // levels that bank the money
+  /*
+   * Safety nets, current ITV format: £1,000 at Q5 is fixed and automatic.
+   * The second net is the contestant's own choice — from Q6 onwards, and
+   * before seeing each question, they may make the upcoming prize their
+   * net, up to a maximum of £500,000 (Q14). Once set, it is locked.
+   */
+  var FIXED_NET_LEVEL = 5;
+  var MAX_SECOND_NET_LEVEL = 14;
   var QUESTION_SECONDS = 45;
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 5;
+  var APP_BUILD = 6;
 
   var state = null;
   var settings = Stats.readSettings();
@@ -68,6 +75,10 @@
 
   /* ---------------- ladder ---------------- */
 
+  function SAFETY_NET_FIXED(level) {
+    return level === FIXED_NET_LEVEL;
+  }
+
   function buildLadder() {
     var ol = $('ladder');
     ol.innerHTML = '';
@@ -75,7 +86,7 @@
       var li = document.createElement('li');
       li.className = 'rung';
       li.dataset.level = String(level);
-      if (SAFETY_NETS.indexOf(level) !== -1) li.classList.add('safety');
+      if (SAFETY_NET_FIXED(level)) li.classList.add('safety');
       if (level === LADDER.length) li.classList.add('top');
       li.innerHTML = '<span class="rung-num">' + level + '</span>' +
                      '<span class="rung-money">' + money(LADDER[level - 1]) + '</span>';
@@ -89,6 +100,7 @@
       li.classList.toggle('current', n === level);
       li.classList.toggle('won', n < level && state.wrongLevels.indexOf(n) === -1);
       li.classList.toggle('missed', state.wrongLevels.indexOf(n) !== -1);
+      li.classList.toggle('chosen-net', n === state.secondNetLevel);
     });
     var current = document.querySelector('#ladder .rung.current');
     if (current && current.scrollIntoView) {
@@ -102,10 +114,20 @@
   function bankedAmount(levelReached) {
     // levelReached = number of questions answered correctly
     var banked = 0;
-    SAFETY_NETS.forEach(function (net) {
-      if (levelReached >= net) banked = LADDER[net - 1];
-    });
+    if (levelReached >= FIXED_NET_LEVEL) banked = LADDER[FIXED_NET_LEVEL - 1];
+    if (state && state.secondNetLevel && levelReached >= state.secondNetLevel) {
+      banked = LADDER[state.secondNetLevel - 1];
+    }
     return banked;
+  }
+
+  /* Can a second net still be set before the question at this level? */
+  function canSetNetAt(level) {
+    return state &&
+           state.secondNetLevel === null &&
+           state.firstWrongLevel === null &&
+           level > FIXED_NET_LEVEL &&
+           level <= MAX_SECOND_NET_LEVEL;
   }
 
   function walkAwayAmount(levelReached) {
@@ -138,11 +160,47 @@
       // carries on past it, but this is where the run officially ended, so
       // it is what the money and the stats are based on.
       firstWrongLevel: null,
-      wrongLevels: []
+      wrongLevels: [],
+      // Level the player has nominated as their second safety net.
+      secondNetLevel: null
     };
 
     $$('.lifeline').forEach(function (b) { b.classList.remove('used'); b.disabled = false; });
     showScreen('screen-game');
+    loadQuestion();
+  }
+
+  /*
+   * Move to the current level's question, offering the safety-net choice
+   * first where the format allows it. The offer must come before the
+   * question is revealed, as it does on the show.
+   */
+  function goToQuestion() {
+    if (canSetNetAt(state.level)) return offerSafetyNet();
+    loadQuestion();
+  }
+
+  function offerSafetyNet() {
+    // Clear the previous question first: the choice is made before seeing
+    // the next one, so leaving the old board behind the prompt is muddling.
+    $('question-text').textContent = '';
+    $('q-category').textContent = '';
+    $('q-difficulty').textContent = '';
+    $$('.answer').forEach(function (btn) {
+      btn.className = 'answer';
+      btn.querySelector('.atext').textContent = '';
+      btn.disabled = true;
+    });
+    $('confirm-bar').hidden = true;
+
+    $('net-amount').textContent = money(LADDER[state.level - 1]);
+    $('net-prompt').hidden = false;
+    tone(520, 180, 'triangle', 0.05);
+  }
+
+  function resolveSafetyNet(set) {
+    if (set) state.secondNetLevel = state.level;
+    $('net-prompt').hidden = true;
     loadQuestion();
   }
 
@@ -252,7 +310,7 @@
 
     if (state.level === LADDER.length) return endGame('lost');
     state.level++;
-    loadQuestion();
+    goToQuestion();
   }
 
   function lockIn() {
@@ -293,7 +351,7 @@
             endGame(state.firstWrongLevel === null ? 'won' : 'lost');
           } else {
             state.level++;
-            loadQuestion();
+            goToQuestion();
           }
         });
       }
@@ -764,6 +822,9 @@
     $('ll-phone').addEventListener('click', phoneAFriend);
     $('ll-host').addEventListener('click', askTheHost);
 
+    $('net-set').addEventListener('click', function () { resolveSafetyNet(true); });
+    $('net-skip').addEventListener('click', function () { resolveSafetyNet(false); });
+
     $('modal-close').addEventListener('click', closeModal);
     $('modal').addEventListener('click', function (e) {
       if (e.target === $('modal')) closeModal();
@@ -778,6 +839,8 @@
 
     // Keyboard: A-D to pick, Enter to lock in, Escape to close a modal.
     document.addEventListener('keydown', function (e) {
+      // The safety-net choice blocks play until answered.
+      if (!$('net-prompt').hidden) return;
       if (!$('modal').hidden) {
         if (e.key === 'Escape' || e.key === 'Enter') closeModal();
         return;

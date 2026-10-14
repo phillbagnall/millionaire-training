@@ -57,9 +57,16 @@ python3 -m http.server 8000
 
 ## How it plays
 
-- **The ladder** — £100 up to £1,000,000 over fifteen questions, with
-  safety nets at £1,000 (Q5) and £32,000 (Q10). Get one wrong and you drop
-  to the last net you passed.
+- **The ladder** — £100 up to £1,000,000 over fifteen questions. Get one
+  wrong and you drop to the last safety net you passed.
+- **Safety nets**, as in the current ITV format:
+  - **£1,000 at Q5** is fixed and automatic.
+  - **The second net is yours to choose.** From Q6 onwards, and *before you
+    see each question*, you are asked whether to make the upcoming prize
+    your net. You get one go at it, and it cannot be set above £500,000
+    (Q14). Once set it is locked, and it shows ringed in green on the
+    ladder. Reach it and you cannot fall below it — set it and miss it, and
+    you are back to the £1,000.
 - **Locking in** — pick an answer, then confirm it. The pause before the
   reveal gets longer as the money climbs, as it does on the show.
 - **Walk away** — available at any point, and banks the amount for the last
@@ -71,14 +78,17 @@ python3 -m http.server 8000
   comparable with a straight game; the result screen adds how many were
   answered correctly overall, and missed rungs are struck through on the
   ladder.
-- **Difficulty** — questions 1–3 are giveaways, 4–6 easy, 7–11 medium, 12–15
-  hard. The show stays gentle for a good while, so the hard tier only starts
-  where the real money does.
+- **Difficulty** — questions 1–3 are the show's opening pitch, 4–6 easy,
+  7–11 medium, 12–15 hard. The show stays gentle for a good while, so the
+  hard tier only starts where the real money does.
 - **The first three questions** never come from an API. No trivia API's
-  "easy" tier is as gentle as the show's opening, so Q1–3 are always served
-  from a hand-written *starter* bank in `js/fallback-questions.js` —
-  British-flavoured and answerable without thinking. Add more by appending
-  entries with `d: 'starter'`.
+  "easy" tier matches the show's opening, so Q1–3 are always served from a
+  hand-written *starter* bank in `js/fallback-questions.js`. These are
+  pitched to match real £100 questions — easy but *adult*, with a British
+  frame of reference ("At which ceremony is the monarch given his or her
+  crown?"), rather than childishly simple. Five are genuine questions from
+  the show; the rest are written to sit at the same level. Add more by
+  appending entries with `d: 'starter'`.
 
 ### Lifelines
 
@@ -110,7 +120,7 @@ so a game never stalls:
    requests ask for *no* category, so each returns a broad mix; niche
    categories (video games, anime, comics, board games, gadgets) are
    filtered out as too far from the show.
-3. **Bundled bank** (`js/fallback-questions.js`) — around 185 questions
+3. **Bundled bank** (`js/fallback-questions.js`) — around 190 questions
    shipped with the app, so it works offline, on a flaky connection, or
    while the live pools are still filling. Its *starter* tier also serves
    Q1–3 of every game regardless of the network.

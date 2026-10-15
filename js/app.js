@@ -23,7 +23,7 @@
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 6;
+  var APP_BUILD = 7;
 
   var state = null;
   var settings = Stats.readSettings();

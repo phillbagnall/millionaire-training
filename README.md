@@ -180,3 +180,16 @@ The service worker serves the cached copy first and refreshes in the
 background, so a change you push appears the *second* time the app is
 opened. To see it immediately, close and reopen the app twice, or bump
 `CACHE` in `sw.js` to a new version string.
+
+### If the phone says "This app is already installed" but won't open it
+
+Chrome identifies an installed web app by the `id` in the manifest. This app
+sets one explicitly (`"id": "millionaire-training"`) so its identity does not
+depend on the URL — but installs made from an earlier address, before that was
+set, are registered under a different identity whose start URL no longer
+exists. Chrome then offers to open an app that cannot open.
+
+To clear it: long-press the old icon → **App info** → **Uninstall** (an
+installed web app appears as an ordinary Android app), or **Settings → Apps**
+and uninstall anything called *Millionaire* or *Millionaire Training*. Then
+reopen the current URL in Chrome and install again.

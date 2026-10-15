@@ -346,6 +346,9 @@ h1, h2, h3 { margin: 0 0 .6em; font-weight: 700; letter-spacing: .02em; }
 .rung-num { width: 22px; color: var(--grey); font-size: .78rem; text-align: right; }
 .rung-money { font-weight: 700; letter-spacing: .02em; }
 .rung.safety .rung-money { color: var(--white); }
+/* The net the player nominated for themselves. */
+.rung.chosen-net { box-shadow: inset 0 0 0 1px rgba(109, 250, 168, .65); }
+.rung.chosen-net .rung-money { color: #6dfaa8; }
 .rung.top .rung-money { color: var(--gold); }
 .rung.won { color: var(--grey); }
 .rung.won .rung-money { color: var(--grey); }
@@ -492,6 +495,10 @@ h1, h2, h3 { margin: 0 0 .6em; font-weight: 700; letter-spacing: .02em; }
   transition: height .6s ease-out;
 }
 .bar-letter { font-weight: 700; color: var(--white); }
+
+.net-line { font-size: 1.15rem; margin: 14px 0 10px; }
+.net-note { font-size: .82rem; color: var(--grey); line-height: 1.5; margin: 0 0 16px; }
+.net-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 .phone-timer { font-size: 1.6rem; font-weight: 700; color: var(--gold); margin: 6px 0 12px; }
 .phone-line { font-size: 1.05rem; line-height: 1.5; }

@@ -26,6 +26,7 @@
 
       <div class="home-buttons">
         <button class="btn btn-primary" id="btn-play">Play a full game</button>
+        <button class="btn" id="btn-fff">Fastest Finger First</button>
         <button class="btn" id="btn-stats">Stats &amp; weak spots</button>
       </div>
 
@@ -50,6 +51,44 @@
 
       <p class="source-note" id="source-note">Loading questions&hellip;</p>
       <p class="build-stamp" id="build-stamp"></p>
+    </div>
+  </section>
+
+  <!-- ================= FASTEST FINGER FIRST ================= -->
+  <section id="screen-fff" class="screen">
+    <div class="fff-wrap">
+      <header class="fff-head">
+        <span class="chip" id="fff-label">Fastest Finger First</span>
+        <div class="fff-timer" id="fff-timer">20.0</div>
+      </header>
+
+      <div class="question-box fff-question-box">
+        <p id="fff-question">&nbsp;</p>
+      </div>
+
+      <div class="fff-options" id="fff-options">
+        <button class="fff-opt" data-index="0"><span class="letter">A</span><span class="atext"></span><span class="seq"></span></button>
+        <button class="fff-opt" data-index="1"><span class="letter">B</span><span class="atext"></span><span class="seq"></span></button>
+        <button class="fff-opt" data-index="2"><span class="letter">C</span><span class="atext"></span><span class="seq"></span></button>
+        <button class="fff-opt" data-index="3"><span class="letter">D</span><span class="atext"></span><span class="seq"></span></button>
+      </div>
+
+      <div class="fff-actions" id="fff-actions">
+        <button class="btn btn-small" id="fff-clear">Start again</button>
+        <button class="btn btn-small btn-quit" id="fff-quit">Quit</button>
+      </div>
+
+      <div class="fff-result panel" id="fff-result" hidden>
+        <h3 id="fff-verdict"></h3>
+        <p class="fff-time" id="fff-time"></p>
+        <p class="fff-order-label">The correct order was:</p>
+        <ol class="fff-correct" id="fff-correct"></ol>
+        <div class="panel-actions">
+          <button class="btn btn-primary btn-small" id="fff-continue">Take your seat</button>
+          <button class="btn btn-small" id="fff-again">Another question</button>
+          <button class="btn btn-small" id="fff-home">Home</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -115,6 +154,8 @@
     <div class="panel">
       <h2>Stats &amp; weak spots</h2>
       <div class="stat-row" id="stat-summary"></div>
+      <h3>Fastest Finger First</h3>
+      <div class="stat-row" id="stat-fff"></div>
       <h3>By category</h3>
       <div id="stat-categories" class="cat-table"></div>
       <h3>Recent games</h3>
@@ -170,6 +211,7 @@
 </div>
 
 <script src="js/fallback-questions.js"></script>
+<script src="js/fff-questions.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/questions.js"></script>
 <script src="js/app.js"></script>

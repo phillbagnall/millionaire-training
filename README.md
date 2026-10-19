@@ -57,6 +57,33 @@ python3 -m http.server 8000
 
 ## How it plays
 
+### Fastest Finger First
+
+Every full game opens with it, as the show does: four items to put in the
+correct order against a **20-second clock**. Tap them in order, and a
+numbered badge shows each placement as it is locked in; **Start again**
+clears the lot if a change of mind is needed. On a keyboard, `A`–`D` place
+items and `Backspace` starts over.
+
+There are no rival contestants to beat, so the measure is her own time,
+which is the thing worth driving down. Afterwards each placement is marked
+right or wrong individually, the true order is shown, and the time is
+recorded.
+
+Getting it wrong does not block the game — **Take your seat** carries on to
+the ladder either way, since a session cut short at the first hurdle is poor
+practice. **Fastest Finger First** on the home screen drills it on its own,
+question after question.
+
+These are an ordering format that no trivia API provides, so they come from
+a hand-written bank of about 50 in `js/fff-questions.js` — chronology,
+size, direction, alphabetical and sequences. Questions do not repeat until
+the bank has been worked through. To add more, append
+`{ q: '...', order: ['first', 'second', 'third', 'fourth'] }`, listing the
+items in their **correct** order; the app shuffles them for display.
+
+### The main game
+
 - **The ladder** — £100 up to £1,000,000 over fifteen questions. Get one
   wrong and you drop to the last safety net you passed.
 - **Safety nets**, as in the current ITV format:
@@ -140,7 +167,10 @@ no accounts, nothing sent anywhere.
 
 The stats screen shows games played, best winnings, best level reached,
 overall accuracy, and a per-category breakdown with accuracy, questions
-seen, and average answer time. Categories with at least four questions seen
+seen, and average answer time. Fastest Finger First gets its own row:
+attempts, how often the order was right, the fastest correct time and the
+average correct time. Only correct attempts count towards the times — a
+fast wrong answer is worth nothing on the show. Categories with at least four questions seen
 and under 70% accuracy are marked as **drilling**.
 
 With *"Target my weakest categories"* switched on (the default), about 40% of
@@ -167,6 +197,7 @@ index.html                 markup for all four screens
 css/styles.css             all styling
 js/questions.js            live sourcing, pools, fallbacks, weak-topic bias
 js/fallback-questions.js   bundled offline question bank
+js/fff-questions.js        Fastest Finger First ordering questions
 js/stats.js                localStorage stats and settings
 js/app.js                  game rules, lifelines, UI wiring
 manifest.webmanifest       app name, icons and colours when installed

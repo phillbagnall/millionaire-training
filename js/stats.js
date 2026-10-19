@@ -19,7 +19,8 @@ window.Stats = (function () {
       totalCorrect: 0,
       totalAnswered: 0,
       categories: {},   // name -> { seen, correct, timeMs }
-      history: []       // newest first
+      history: [],      // newest first
+      fff: { played: 0, correct: 0, bestMs: null, totalMs: 0 }
     };
   }
 
@@ -80,6 +81,23 @@ window.Stats = (function () {
       date: result.date || Date.now()
     });
     data.history = data.history.slice(0, MAX_HISTORY);
+    write(data);
+  }
+
+  /*
+   * Fastest Finger First. Only correct attempts count towards the times —
+   * a fast wrong answer is worth nothing on the show.
+   */
+  function recordFFF(wasCorrect, elapsedMs) {
+    var data = read();
+    var f = data.fff || { played: 0, correct: 0, bestMs: null, totalMs: 0 };
+    f.played += 1;
+    if (wasCorrect) {
+      f.correct += 1;
+      f.totalMs += elapsedMs;
+      if (f.bestMs === null || elapsedMs < f.bestMs) f.bestMs = elapsedMs;
+    }
+    data.fff = f;
     write(data);
   }
 
@@ -149,6 +167,7 @@ window.Stats = (function () {
     read: read,
     recordAnswer: recordAnswer,
     recordGame: recordGame,
+    recordFFF: recordFFF,
     reset: reset,
     categoryRows: categoryRows,
     weakCategories: weakCategories,

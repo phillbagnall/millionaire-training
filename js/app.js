@@ -23,7 +23,7 @@
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 7;
+  var APP_BUILD = 8;
 
   var state = null;
   var settings = Stats.readSettings();
@@ -134,9 +134,170 @@
     return levelReached > 0 ? LADDER[levelReached - 1] : 0;
   }
 
-  /* ---------------- game flow ---------------- */
+  /* ================= FASTEST FINGER FIRST =================
+   *
+   * Four items to put in order against a 20-second clock. On the show the
+   * fastest correct answer wins the seat; here there are no rivals, so the
+   * measure is her own time — which is the thing worth driving down.
+   */
 
+  var FFF_SECONDS = 20;
+  var FFF_SEEN_KEY = 'wwtbam.fffSeen.v1';
+
+  var fff = null;
+
+  function fffShuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  /* Avoid repeating questions until the bank has been worked through. */
+  function fffPickQuestion() {
+    var bank = window.FFF_QUESTIONS || [];
+    if (!bank.length) return null;
+
+    var seen = [];
+    try { seen = JSON.parse(localStorage.getItem(FFF_SEEN_KEY)) || []; } catch (e) { seen = []; }
+
+    var unseen = bank.filter(function (q) { return seen.indexOf(q.q) === -1; });
+    if (!unseen.length) { unseen = bank; seen = []; }
+
+    var picked = unseen[Math.floor(Math.random() * unseen.length)];
+    seen.push(picked.q);
+    try { localStorage.setItem(FFF_SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* ignore */ }
+    return picked;
+  }
+
+  function startFFF(mode) {
+    var question = fffPickQuestion();
+    if (!question) return mode === 'game' ? beginLadder() : showScreen('screen-home');
+
+    settings = Stats.readSettings();
+    fff = {
+      mode: mode,                       // 'game' before a full game, or 'practice'
+      question: question,
+      display: fffShuffle(question.order),
+      picks: [],                        // display indices, in the order tapped
+      startedAt: 0,
+      timerId: null,
+      done: false
+    };
+
+    $('fff-label').textContent = mode === 'game'
+      ? 'Fastest Finger First — win your seat'
+      : 'Fastest Finger First — practice';
+    $('fff-question').textContent = question.q;
+    $('fff-result').hidden = true;
+    $('fff-actions').hidden = false;
+
+    $$('.fff-opt').forEach(function (btn, i) {
+      btn.className = 'fff-opt';
+      btn.disabled = false;
+      btn.querySelector('.atext').textContent = fff.display[i];
+      btn.querySelector('.seq').textContent = '';
+    });
+
+    $('fff-timer').textContent = FFF_SECONDS.toFixed(1);
+    $('fff-timer').classList.remove('urgent');
+
+    showScreen('screen-fff');
+    fff.startedAt = Date.now();
+    fff.timerId = setInterval(fffTick, 100);
+  }
+
+  function fffTick() {
+    if (!fff || fff.done) return;
+    var left = FFF_SECONDS - (Date.now() - fff.startedAt) / 1000;
+    if (left <= 0) {
+      $('fff-timer').textContent = '0.0';
+      return fffFinish(true);
+    }
+    $('fff-timer').textContent = left.toFixed(1);
+    $('fff-timer').classList.toggle('urgent', left <= 5);
+  }
+
+  function fffPick(index) {
+    if (!fff || fff.done) return;
+    if (fff.picks.indexOf(index) !== -1) return;
+
+    fff.picks.push(index);
+    var btn = $$('.fff-opt')[index];
+    btn.classList.add('picked');
+    btn.querySelector('.seq').textContent = fff.picks.length;
+    tone(520 + fff.picks.length * 90, 70, 'triangle', 0.05);
+
+    if (fff.picks.length === 4) fffFinish(false);
+  }
+
+  function fffClear() {
+    if (!fff || fff.done) return;
+    fff.picks = [];
+    $$('.fff-opt').forEach(function (btn) {
+      btn.classList.remove('picked');
+      btn.querySelector('.seq').textContent = '';
+    });
+  }
+
+  function fffFinish(ranOut) {
+    fff.done = true;
+    clearInterval(fff.timerId);
+    fff.timerId = null;
+
+    var elapsed = Math.min(Date.now() - fff.startedAt, FFF_SECONDS * 1000);
+    var correctOrder = fff.question.order;
+
+    // Correct when the tapped sequence matches the real order exactly.
+    var given = fff.picks.map(function (i) { return fff.display[i]; });
+    var correct = !ranOut && given.length === 4 && given.every(function (item, n) {
+      return item === correctOrder[n];
+    });
+
+    $$('.fff-opt').forEach(function (btn, i) {
+      btn.disabled = true;
+      var item = fff.display[i];
+      var place = fff.picks.indexOf(i);
+      if (place === -1) return;
+      btn.classList.add(item === correctOrder[place] ? 'right' : 'wrong');
+    });
+
+    Stats.recordFFF(correct, elapsed);
+
+    $('fff-verdict').textContent = correct ? 'Correct!'
+      : ranOut ? 'Out of time'
+      : 'Not quite';
+    $('fff-time').textContent = ranOut
+      ? 'You did not lock in all four within ' + FFF_SECONDS + ' seconds.'
+      : 'Your time: ' + (elapsed / 1000).toFixed(2) + ' seconds';
+
+    $('fff-correct').innerHTML = correctOrder.map(function (item) {
+      return '<li>' + escapeHtml(item) + '</li>';
+    }).join('');
+
+    $('fff-continue').hidden = fff.mode !== 'game';
+    $('fff-actions').hidden = true;
+    $('fff-result').hidden = false;
+
+    if (correct) soundCorrect(); else soundWrong();
+  }
+
+  function fffStop() {
+    if (fff && fff.timerId) clearInterval(fff.timerId);
+    fff = null;
+  }
+
+  /* ================= main game ================= */
+
+  /* A full game opens with Fastest Finger First, as the show does. */
   function startGame() {
+    startFFF('game');
+  }
+
+  function beginLadder() {
+    fffStop();
     settings = Stats.readSettings();
     // Cap the targeting: without a limit, one badly-answered subject can
     // crowd out everything else.
@@ -686,6 +847,16 @@
       statTile('Best level', data.bestLevel + ' / 15') +
       statTile('Overall accuracy', overall);
 
+    var f = data.fff || { played: 0, correct: 0, bestMs: null, totalMs: 0 };
+    var fffAccuracy = f.played ? Math.round((f.correct / f.played) * 100) + '%' : '—';
+    var fffBest = f.bestMs === null ? '—' : (f.bestMs / 1000).toFixed(2) + 's';
+    var fffAvg = f.correct ? (f.totalMs / f.correct / 1000).toFixed(2) + 's' : '—';
+    $('stat-fff').innerHTML =
+      statTile('FFF attempts', f.played) +
+      statTile('Got the order right', fffAccuracy) +
+      statTile('Fastest correct', fffBest) +
+      statTile('Average correct', fffAvg);
+
     var rows = Stats.categoryRows();
     if (!rows.length) {
       $('stat-categories').innerHTML = '<p class="muted">Play a game and this fills in.</p>';
@@ -788,6 +959,22 @@
     bindSetting('opt-sound', 'sound');
 
     $('btn-play').addEventListener('click', startGame);
+    $('btn-fff').addEventListener('click', function () { startFFF('practice'); });
+
+    $$('.fff-opt').forEach(function (btn) {
+      btn.addEventListener('click', function () { fffPick(Number(btn.dataset.index)); });
+    });
+    $('fff-clear').addEventListener('click', fffClear);
+    $('fff-quit').addEventListener('click', function () {
+      fffStop();
+      showScreen('screen-home');
+    });
+    $('fff-continue').addEventListener('click', beginLadder);
+    $('fff-again').addEventListener('click', function () { startFFF(fff ? fff.mode : 'practice'); });
+    $('fff-home').addEventListener('click', function () {
+      fffStop();
+      showScreen('screen-home');
+    });
     $('btn-stats').addEventListener('click', function () {
       renderStats();
       showScreen('screen-stats');
@@ -843,6 +1030,13 @@
       if (!$('net-prompt').hidden) return;
       if (!$('modal').hidden) {
         if (e.key === 'Escape' || e.key === 'Enter') closeModal();
+        return;
+      }
+      // Fastest Finger First: A-D tap items in order, Backspace starts over.
+      if ($('screen-fff').classList.contains('active')) {
+        var fffIndex = ['a', 'b', 'c', 'd'].indexOf(e.key.toLowerCase());
+        if (fffIndex !== -1) fffPick(fffIndex);
+        if (e.key === 'Backspace') { e.preventDefault(); fffClear(); }
         return;
       }
       if (!$('screen-game').classList.contains('active')) return;

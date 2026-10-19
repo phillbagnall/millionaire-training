@@ -40,6 +40,10 @@
           <span>Keep playing after a wrong answer</span>
         </label>
         <label class="setting">
+          <input type="checkbox" id="opt-fff-speak" checked>
+          <span>Read Fastest Finger questions aloud</span>
+        </label>
+        <label class="setting">
           <input type="checkbox" id="opt-timer">
           <span>Question timer (45s)</span>
         </label>
@@ -64,6 +68,11 @@
 
       <div class="question-box fff-question-box">
         <p id="fff-question">&nbsp;</p>
+      </div>
+
+      <div class="fff-reading" id="fff-reading">
+        <p class="fff-reading-note" id="fff-reading-note">Read the question&hellip;</p>
+        <button class="btn btn-primary btn-small" id="fff-ready">Ready &mdash; show the answers</button>
       </div>
 
       <div class="fff-options" id="fff-options">

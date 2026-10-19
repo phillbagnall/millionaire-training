@@ -23,7 +23,7 @@
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 8;
+  var APP_BUILD = 9;
 
   var state = null;
   var settings = Stats.readSettings();
@@ -155,6 +155,16 @@
     return a;
   }
 
+  /*
+   * A question's identity is its prompt *and* its items: several questions
+   * legitimately share a form of words ("Put these monarchs in the order
+   * they came to the throne") while asking about different people, and
+   * keying on the prompt alone would hide all but one of them for good.
+   */
+  function fffKey(q) {
+    return q.q + '::' + q.order.join('|');
+  }
+
   /* Avoid repeating questions until the bank has been worked through. */
   function fffPickQuestion() {
     var bank = window.FFF_QUESTIONS || [];
@@ -163,11 +173,11 @@
     var seen = [];
     try { seen = JSON.parse(localStorage.getItem(FFF_SEEN_KEY)) || []; } catch (e) { seen = []; }
 
-    var unseen = bank.filter(function (q) { return seen.indexOf(q.q) === -1; });
+    var unseen = bank.filter(function (q) { return seen.indexOf(fffKey(q)) === -1; });
     if (!unseen.length) { unseen = bank; seen = []; }
 
     var picked = unseen[Math.floor(Math.random() * unseen.length)];
-    seen.push(picked.q);
+    seen.push(fffKey(picked));
     try { localStorage.setItem(FFF_SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* ignore */ }
     return picked;
   }
@@ -182,8 +192,10 @@
       question: question,
       display: fffShuffle(question.order),
       picks: [],                        // display indices, in the order tapped
+      phase: 'reading',                 // 'reading' -> 'answering' -> done
       startedAt: 0,
       timerId: null,
+      readId: null,
       done: false
     };
 
@@ -192,25 +204,118 @@
       : 'Fastest Finger First — practice';
     $('fff-question').textContent = question.q;
     $('fff-result').hidden = true;
-    $('fff-actions').hidden = false;
+    $('fff-actions').hidden = true;
 
     $$('.fff-opt').forEach(function (btn, i) {
       btn.className = 'fff-opt';
-      btn.disabled = false;
-      btn.querySelector('.atext').textContent = fff.display[i];
+      btn.disabled = true;
+      // The answers stay hidden while the question is being read, exactly as
+      // they do on the show — so reading time never costs her any clock.
+      btn.querySelector('.atext').textContent = '';
       btn.querySelector('.seq').textContent = '';
     });
+    $('fff-options').hidden = true;
+    $('fff-reading').hidden = false;
 
     $('fff-timer').textContent = FFF_SECONDS.toFixed(1);
     $('fff-timer').classList.remove('urgent');
+    $('fff-timer').classList.add('idle');
 
     showScreen('screen-fff');
+    fffRead(question.q);
+  }
+
+  /*
+   * The reading phase. On the show the host reads the question out, and only
+   * then are the answers revealed and the clock started. Here the question is
+   * spoken aloud where the device supports it, and otherwise held on screen
+   * for a pause scaled to its length.
+   */
+  function fffRead(text) {
+    var speech = window.speechSynthesis;
+
+    if (settings.fffSpeak && speech && typeof SpeechSynthesisUtterance === 'function') {
+      try {
+        speech.cancel();
+        var started = false;
+        var utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 0.95;
+        utter.lang = 'en-GB';
+        utter.onstart = function () { started = true; };
+        utter.onend = function () { fffReveal(); };
+        // A device with no voices errors immediately. Revealing then would
+        // give no reading time at all, so fall back to the timed pause.
+        utter.onerror = function () {
+          if (started) return fffReveal();
+          fffTimedPause(text);
+        };
+        $('fff-reading-note').textContent = 'Listen to the question…';
+        speech.speak(utter);
+
+        fff.readId = setTimeout(function () {
+          if (!fff || fff.phase !== 'reading') return;
+          if (!started) {
+            // Speech never actually began — read it on screen instead.
+            try { speech.cancel(); } catch (e) { /* ignore */ }
+            return fffTimedPause(text);
+          }
+          // Speaking, but some devices never fire onend; use an estimate.
+          fff.readId = setTimeout(fffReveal,
+            Math.max(3000, text.split(/\s+/).length * 420));
+        }, 700);
+        return;
+      } catch (e) {
+        /* fall through to the timed pause */
+      }
+    }
+
+    fffTimedPause(text);
+  }
+
+  /* No speech: hold the question on screen, counting down to the reveal. */
+  function fffTimedPause(text) {
+    if (!fff || fff.phase !== 'reading') return;
+    if (fff.readId) { clearTimeout(fff.readId); clearInterval(fff.readId); fff.readId = null; }
+
+    var note = $('fff-reading-note');
+    var left = Math.min(9, Math.max(3, Math.round(text.split(/\s+/).length * 0.42)));
+    note.textContent = 'Read the question — answers in ' + left + '…';
+    fff.readId = setInterval(function () {
+      left -= 1;
+      if (left <= 0) return fffReveal();
+      note.textContent = 'Read the question — answers in ' + left + '…';
+    }, 1000);
+  }
+
+  function fffClearReading() {
+    if (!fff) return;
+    if (fff.readId) { clearTimeout(fff.readId); clearInterval(fff.readId); fff.readId = null; }
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  }
+
+  /* Answers appear and the clock starts — not a moment before. */
+  function fffReveal() {
+    if (!fff || fff.phase !== 'reading') return;
+    fffClearReading();
+    fff.phase = 'answering';
+
+    $('fff-reading').hidden = true;
+    $('fff-options').hidden = false;
+    $('fff-actions').hidden = false;
+    $$('.fff-opt').forEach(function (btn, i) {
+      btn.disabled = false;
+      btn.querySelector('.atext').textContent = fff.display[i];
+    });
+
+    $('fff-timer').classList.remove('idle');
+    tone(880, 120, 'triangle', 0.06);
+
     fff.startedAt = Date.now();
     fff.timerId = setInterval(fffTick, 100);
   }
 
   function fffTick() {
-    if (!fff || fff.done) return;
+    if (!fff || fff.done || fff.phase !== 'answering') return;
     var left = FFF_SECONDS - (Date.now() - fff.startedAt) / 1000;
     if (left <= 0) {
       $('fff-timer').textContent = '0.0';
@@ -221,7 +326,7 @@
   }
 
   function fffPick(index) {
-    if (!fff || fff.done) return;
+    if (!fff || fff.done || fff.phase !== 'answering') return;
     if (fff.picks.indexOf(index) !== -1) return;
 
     fff.picks.push(index);
@@ -244,6 +349,7 @@
 
   function fffFinish(ranOut) {
     fff.done = true;
+    fffClearReading();
     clearInterval(fff.timerId);
     fff.timerId = null;
 
@@ -286,6 +392,7 @@
 
   function fffStop() {
     if (fff && fff.timerId) clearInterval(fff.timerId);
+    fffClearReading();
     fff = null;
   }
 
@@ -955,6 +1062,7 @@
 
     bindSetting('opt-adaptive', 'adaptive');
     bindSetting('opt-practice', 'practice');
+    bindSetting('opt-fff-speak', 'fffSpeak');
     bindSetting('opt-timer', 'timer');
     bindSetting('opt-sound', 'sound');
 
@@ -965,6 +1073,7 @@
       btn.addEventListener('click', function () { fffPick(Number(btn.dataset.index)); });
     });
     $('fff-clear').addEventListener('click', fffClear);
+    $('fff-ready').addEventListener('click', fffReveal);
     $('fff-quit').addEventListener('click', function () {
       fffStop();
       showScreen('screen-home');
@@ -1034,6 +1143,11 @@
       }
       // Fastest Finger First: A-D tap items in order, Backspace starts over.
       if ($('screen-fff').classList.contains('active')) {
+        // Space or Enter reveals the answers while the question is being read.
+        if (fff && fff.phase === 'reading') {
+          if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); fffReveal(); }
+          return;
+        }
         var fffIndex = ['a', 'b', 'c', 'd'].indexOf(e.key.toLowerCase());
         if (fffIndex !== -1) fffPick(fffIndex);
         if (e.key === 'Backspace') { e.preventDefault(); fffClear(); }

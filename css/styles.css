@@ -399,6 +399,27 @@ h1, h2, h3 { margin: 0 0 .6em; font-weight: 700; letter-spacing: .02em; }
   animation: pulse .7s infinite;
 }
 
+.fff-timer.idle {
+  color: var(--grey);
+  border-color: rgba(255, 255, 255, .2);
+}
+
+/* The reading phase: question up, answers still hidden, clock not running. */
+.fff-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  text-align: center;
+}
+.fff-reading-note {
+  margin: 0;
+  color: var(--gold);
+  font-size: .95rem;
+  letter-spacing: .04em;
+}
+
 .fff-question-box { min-height: 96px; }
 
 .fff-options {

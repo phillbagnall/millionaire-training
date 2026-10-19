@@ -65,6 +65,18 @@ numbered badge shows each placement as it is locked in; **Start again**
 clears the lot if a change of mind is needed. On a keyboard, `A`–`D` place
 items and `Backspace` starts over.
 
+**The question comes first, and the clock does not run while it does.** On
+the show the host reads the question out and the answers are only revealed
+afterwards, so reading time costs nothing. The app mirrors that: the
+question appears alone with the clock greyed out at 20.0, read aloud where
+the device supports speech, and otherwise held on screen for a pause scaled
+to its length. The answers appear and the clock starts together — **Ready**
+(or `Space`) skips ahead once she has taken it in. Reading time is never
+counted in her recorded time.
+
+If a device has no speech voices the app falls back to the on-screen pause
+rather than revealing instantly, so there is always time to read.
+
 There are no rival contestants to beat, so the measure is her own time,
 which is the thing worth driving down. Afterwards each placement is marked
 right or wrong individually, the true order is shown, and the time is
@@ -76,8 +88,9 @@ practice. **Fastest Finger First** on the home screen drills it on its own,
 question after question.
 
 These are an ordering format that no trivia API provides, so they come from
-a hand-written bank of about 50 in `js/fff-questions.js` — chronology,
-size, direction, alphabetical and sequences. Questions do not repeat until
+a hand-written bank of about 150 in `js/fff-questions.js` — chronology
+(British and world history, monarchs, Prime Ministers, science, culture),
+size and quantity, compass direction, alphabetical and sequences. Questions do not repeat until
 the bank has been worked through. To add more, append
 `{ q: '...', order: ['first', 'second', 'third', 'fourth'] }`, listing the
 items in their **correct** order; the app shuffles them for display.
@@ -187,6 +200,7 @@ real show can ask about anything.
 |---|---|---|
 | Target my weakest categories | on | Biases question selection towards weak subjects |
 | Keep playing after a wrong answer | off | Carries on to Q15 for practice; the result is still scored at the first mistake |
+| Read Fastest Finger questions aloud | on | Speaks the question before revealing the answers; falls back to a timed on-screen pause |
 | Question timer (45s) | off | Adds a countdown; running out counts as a wrong answer |
 | Sound | on | Short synthesised cues for select, lock-in, correct and wrong |
 

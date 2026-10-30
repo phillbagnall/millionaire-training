@@ -5,13 +5,14 @@
  * start on the Tube. Trivia API calls are never cached — they go straight to
  * the network, and questions.js falls back to the bundled bank if they fail.
  */
-var CACHE = 'millionaire-v9';
+var CACHE = 'millionaire-v10';
 
 var SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './js/blocked-questions.js',
   './js/fallback-questions.js',
   './js/fff-questions.js',
   './js/stats.js',

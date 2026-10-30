@@ -173,6 +173,32 @@ To add your own questions, append entries to `js/fallback-questions.js` —
 `c` category, `d` difficulty, `q` question, `a` correct answer, `w` three
 wrong answers.
 
+## Wrong answers from the live sources
+
+The live question databases are crowd-written and **do contain mistakes**.
+One served "Lusitania" as the Titanic's sister ship — it was Olympic — which
+marks a right answer wrong and teaches the error. There is no way to
+fact-check a live question automatically, so there are three defences
+instead:
+
+1. **A block list.** `js/blocked-questions.js` lists questions known to be
+   wrong; they are dropped before they can be shown. Matching is on the
+   question text, normalised to lowercase letters and digits, so punctuation
+   and surrounding spelling do not matter. Add an entry with a `why` note
+   saying what is wrong with it.
+2. **Report.** Every question on the results screen has a **Report** button.
+   Reports are kept on the device and listed on the stats screen as
+   copy-ready text — question, the answer it marked correct, what was
+   answered, and which source it came from — ready to be sent on and added
+   to the block list.
+3. **Vetted questions only.** A setting that turns the live sources off
+   entirely and plays from the bundled bank, every answer in which has been
+   checked by hand. Narrower, and questions repeat sooner, but nothing in it
+   is wrong. Worth switching on in the run-up to a recording.
+
+Each question records which source it came from (`The Trivia API`,
+`Open Trivia DB` or `bundled bank`), which is what makes a report useful.
+
 ## Stats and weak-spot targeting
 
 Everything is stored in the browser's `localStorage` on that device only —
@@ -201,6 +227,7 @@ real show can ask about anything.
 | Target my weakest categories | on | Biases question selection towards weak subjects |
 | Keep playing after a wrong answer | off | Carries on to Q15 for practice; the result is still scored at the first mistake |
 | Read Fastest Finger questions aloud | on | Speaks the question before revealing the answers; falls back to a timed on-screen pause |
+| Vetted questions only | off | Plays only hand-checked bundled questions; no live sources are contacted at all |
 | Question timer (45s) | off | Adds a countdown; running out counts as a wrong answer |
 | Sound | on | Short synthesised cues for select, lock-in, correct and wrong |
 
@@ -210,6 +237,7 @@ real show can ask about anything.
 index.html                 markup for all four screens
 css/styles.css             all styling
 js/questions.js            live sourcing, pools, fallbacks, weak-topic bias
+js/blocked-questions.js    questions known to be wrong, filtered out
 js/fallback-questions.js   bundled offline question bank
 js/fff-questions.js        Fastest Finger First ordering questions
 js/stats.js                localStorage stats and settings

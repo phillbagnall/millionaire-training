@@ -23,7 +23,7 @@
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 9;
+  var APP_BUILD = 10;
 
   var state = null;
   var settings = Stats.readSettings();
@@ -408,6 +408,7 @@
     settings = Stats.readSettings();
     // Cap the targeting: without a limit, one badly-answered subject can
     // crowd out everything else.
+    Questions.setVettedOnly(settings.vettedOnly);
     Questions.setPreferredCategories(
       settings.adaptive ? Stats.weakCategories().slice(0, 4) : []
     );
@@ -556,7 +557,8 @@
     Stats.recordAnswer(q.category, false, QUESTION_SECONDS * 1000);
     state.review.push({
       level: state.level, category: q.category, question: q.question,
-      correct: q.answers[q.correctIndex], given: '(ran out of time)', wasCorrect: false
+      correct: q.answers[q.correctIndex], given: '(ran out of time)',
+      wasCorrect: false, source: q.source
     });
     $$('.answer')[q.correctIndex].classList.add('correct');
     soundWrong();
@@ -607,7 +609,8 @@
         question: q.question,
         correct: q.answers[q.correctIndex],
         given: q.answers[chosen],
-        wasCorrect: wasCorrect
+        wasCorrect: wasCorrect,
+        source: q.source
       });
 
       if (wasCorrect) {
@@ -924,7 +927,7 @@
       practiceEl.hidden = true;
     }
 
-    var rows = state.review.map(function (r) {
+    var rows = state.review.map(function (r, n) {
       var mark = r.wasCorrect ? '<span class="tick">✓</span>' : '<span class="cross">✗</span>';
       var extra = r.wasCorrect ? '' :
         '<div class="review-correction">Correct answer: <strong>' +
@@ -933,16 +936,82 @@
                '<div class="review-head">' + mark +
                  '<span class="review-level">Q' + r.level + '</span>' +
                  '<span class="review-cat">' + escapeHtml(r.category) + '</span>' +
+                 '<button class="report-btn" data-review="' + n + '">Report</button>' +
                '</div>' +
                '<div class="review-q">' + escapeHtml(r.question) + '</div>' + extra +
              '</div>';
     }).join('');
-    $('result-review').innerHTML = '<h3>This game</h3>' + (rows || '<p>No questions answered.</p>');
+    $('result-review').innerHTML =
+      '<h3>This game</h3>' +
+      '<p class="review-hint">Seen a wrong answer? Tap <strong>Report</strong> and it can be ' +
+      'blocked — the live sources are crowd-written and do contain mistakes.</p>' +
+      (rows || '<p>No questions answered.</p>');
+
+    $$('#result-review .report-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        reportQuestion(state.review[Number(btn.dataset.review)], btn);
+      });
+    });
+  }
+
+  /* ---------------- reporting a wrong question ---------------- */
+
+  var REPORT_KEY = 'wwtbam.reported.v1';
+
+  function readReports() {
+    try { return JSON.parse(localStorage.getItem(REPORT_KEY)) || []; } catch (e) { return []; }
+  }
+
+  /*
+   * There is no way to fact-check a live question automatically, so the
+   * next best thing is to make it one tap to flag one. Reports are kept on
+   * the device and listed on the stats screen, ready to be sent on and
+   * added to the block list.
+   */
+  function reportQuestion(entry, btn) {
+    if (!entry) return;
+    var reports = readReports();
+    if (!reports.some(function (r) { return r.question === entry.question; })) {
+      reports.unshift({
+        question: entry.question,
+        correct: entry.correct,
+        given: entry.given,
+        category: entry.category,
+        source: entry.source || 'unknown',
+        date: Date.now()
+      });
+      try { localStorage.setItem(REPORT_KEY, JSON.stringify(reports.slice(0, 100))); } catch (e) {}
+    }
+    btn.textContent = 'Reported';
+    btn.disabled = true;
+    btn.classList.add('reported');
+  }
+
+  function renderReports() {
+    var reports = readReports();
+    var box = $('stat-reports');
+    if (!reports.length) {
+      box.innerHTML = '<p class="muted">Nothing reported. If a question has the wrong answer, ' +
+        'tap <strong>Report</strong> beside it on the results screen.</p>';
+      $('btn-clear-reports').hidden = true;
+      return;
+    }
+    $('btn-clear-reports').hidden = false;
+    var text = reports.map(function (r) {
+      return '- "' + r.question + '"\n  marked correct: ' + r.correct +
+             '\n  answered: ' + r.given + '\n  source: ' + r.source;
+    }).join('\n');
+    box.innerHTML =
+      '<p class="muted">' + reports.length + ' reported. Copy this and send it on, ' +
+      'and these can be blocked for good:</p>' +
+      '<textarea class="report-dump" readonly rows="' + Math.min(14, reports.length * 4 + 1) + '">' +
+      escapeHtml(text) + '</textarea>';
   }
 
   /* ---------------- stats screen ---------------- */
 
   function renderStats() {
+    renderReports();
     var data = Stats.read();
     var overall = data.totalAnswered
       ? Math.round((data.totalCorrect / data.totalAnswered) * 100) + '%'
@@ -1031,6 +1100,13 @@
     function render() {
       var s = Questions.getStatus();
       var text;
+      if (settings.vettedOnly) {
+        // Deliberate, not a failure: say so rather than looking broken.
+        el.textContent = 'Questions: vetted bundled bank only — live sources off.';
+        el.classList.remove('source-warn');
+        clearInterval(id);
+        return;
+      }
       if (s.live && s.source.indexOf('UK') !== -1) {
         text = 'Questions: ' + s.source + '.';
       } else if (s.live) {
@@ -1045,8 +1121,9 @@
       el.classList.toggle('source-warn', checks >= 6 && (!s.live || !!s.note));
     }
 
+    var id = null;
     render();
-    var id = setInterval(function () {
+    id = setInterval(function () {
       checks++;
       render();
       // Stop once settled on the intended source, or after ~30 seconds.
@@ -1063,6 +1140,7 @@
     bindSetting('opt-adaptive', 'adaptive');
     bindSetting('opt-practice', 'practice');
     bindSetting('opt-fff-speak', 'fffSpeak');
+    bindSetting('opt-vetted', 'vettedOnly');
     bindSetting('opt-timer', 'timer');
     bindSetting('opt-sound', 'sound');
 
@@ -1087,6 +1165,10 @@
     $('btn-stats').addEventListener('click', function () {
       renderStats();
       showScreen('screen-stats');
+    });
+    $('btn-clear-reports').addEventListener('click', function () {
+      try { localStorage.removeItem(REPORT_KEY); } catch (e) {}
+      renderReports();
     });
     $('btn-stats-back').addEventListener('click', function () { showScreen('screen-home'); });
     $('btn-stats-reset').addEventListener('click', function () {
@@ -1162,6 +1244,7 @@
 
     $('build-stamp').textContent = 'build ' + APP_BUILD;
 
+    Questions.setVettedOnly(settings.vettedOnly);
     Questions.prefetch();
     watchSource();
   }

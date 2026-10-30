@@ -40,6 +40,10 @@
           <span>Keep playing after a wrong answer</span>
         </label>
         <label class="setting">
+          <input type="checkbox" id="opt-vetted">
+          <span>Vetted questions only (no live sources)</span>
+        </label>
+        <label class="setting">
           <input type="checkbox" id="opt-fff-speak" checked>
           <span>Read Fastest Finger questions aloud</span>
         </label>
@@ -167,6 +171,10 @@
       <div class="stat-row" id="stat-fff"></div>
       <h3>By category</h3>
       <div id="stat-categories" class="cat-table"></div>
+      <h3>Reported questions</h3>
+      <div id="stat-reports"></div>
+      <button class="btn btn-small btn-danger" id="btn-clear-reports" hidden>Clear reported list</button>
+
       <h3>Recent games</h3>
       <div id="stat-history" class="history"></div>
       <div class="panel-actions">
@@ -219,6 +227,7 @@
   </div>
 </div>
 
+<script src="js/blocked-questions.js"></script>
 <script src="js/fallback-questions.js"></script>
 <script src="js/fff-questions.js"></script>
 <script src="js/stats.js"></script>

@@ -5,29 +5,37 @@
  * start on the Tube. Trivia API calls are never cached — they go straight to
  * the network, and questions.js falls back to the bundled bank if they fail.
  */
-var CACHE = 'millionaire-v8';
+var CACHE = 'millionaire-v11';
 
 var SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './js/blocked-questions.js',
   './js/fallback-questions.js',
   './js/fff-questions.js',
   './js/stats.js',
   './js/questions.js',
   './js/app.js',
+  './js/update.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png'
 ];
 
+/*
+ * A new version installs but deliberately waits rather than taking over at
+ * once: the page tells it when the player is not mid-game. See js/update.js.
+ */
 self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE)
-      .then(function (cache) { return cache.addAll(SHELL); })
-      .then(function () { return self.skipWaiting(); })
+    caches.open(CACHE).then(function (cache) { return cache.addAll(SHELL); })
   );
+});
+
+self.addEventListener('message', function (event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', function (event) {

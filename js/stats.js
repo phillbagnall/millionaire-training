@@ -143,7 +143,7 @@ window.Stats = (function () {
   /* ---------------- settings ---------------- */
 
   function readSettings() {
-    var defaults = { adaptive: true, timer: false, sound: true, practice: false };
+    var defaults = { adaptive: true, timer: false, sound: true, practice: false, fffSpeak: true, vettedOnly: false };
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (!raw) return defaults;

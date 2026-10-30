@@ -77,6 +77,7 @@ window.Questions = (function () {
   var otdbFailures = 0;
   var status = { source: 'offline bank', live: false, note: 'still loading' };
   var preferredCategories = [];  // display names to bias towards
+  var vettedOnly = false;        // when on, never ask a live source
 
   /* ---------------- helpers ---------------- */
 
@@ -139,7 +140,7 @@ window.Questions = (function () {
     return readSeen().indexOf(key) !== -1;
   }
 
-  function makeQuestion(category, difficulty, text, correct, wrong) {
+  function makeQuestion(category, difficulty, text, correct, wrong, source) {
     var answers = shuffle([correct].concat(wrong));
     return {
       category: category,
@@ -148,8 +149,22 @@ window.Questions = (function () {
       correct: correct,
       answers: answers,
       correctIndex: answers.indexOf(correct),
-      key: normaliseKey(text)
+      key: normaliseKey(text),
+      source: source || 'unknown'
     };
+  }
+
+  /*
+   * Questions known to be wrong. The live sources are crowd-written and do
+   * contain mistakes, and a wrong answer key is worse than no question at
+   * all — it marks a right answer wrong and teaches the error.
+   */
+  var blockedKeys = (window.BLOCKED_QUESTIONS || []).map(function (b) {
+    return normaliseKey(b.text);
+  });
+
+  function isBlocked(q) {
+    return blockedKeys.indexOf(q.key) !== -1;
   }
 
   /* ---------------- category choice ---------------- */
@@ -251,7 +266,8 @@ window.Questions = (function () {
             decodeB64(item.difficulty),
             decodeB64(item.question),
             decodeB64(item.correct_answer),
-            item.incorrect_answers.map(decodeB64)
+            item.incorrect_answers.map(decodeB64),
+            'Open Trivia DB'
           );
         }).filter(function (q) {
           return EXCLUDED_CATEGORIES.indexOf(q.category) === -1;
@@ -323,7 +339,8 @@ window.Questions = (function () {
           difficulty,
           decodeEntities(item.question && item.question.text ? item.question.text : ''),
           decodeEntities(item.correctAnswer),
-          (item.incorrectAnswers || []).slice(0, 3).map(decodeEntities)
+          (item.incorrectAnswers || []).slice(0, 3).map(decodeEntities),
+          'The Trivia API'
         );
       }).filter(function (q) {
         return q.question && q.answers.length === 4;
@@ -336,6 +353,7 @@ window.Questions = (function () {
   function addToPool(difficulty, questions) {
     var fresh = questions.filter(function (q) {
       if (!q.question || q.answers.length !== 4) return false;
+      if (isBlocked(q)) return false;
       if (isSeen(q.key)) return false;
       return !pools[difficulty].some(function (p) { return p.key === q.key; });
     });
@@ -418,7 +436,7 @@ window.Questions = (function () {
     }
 
     var item = pick(source);
-    return makeQuestion(item.c, item.d, item.q, item.a, item.w);
+    return makeQuestion(item.c, item.d, item.q, item.a, item.w, 'bundled bank');
   }
 
   /* ---------------- public API ---------------- */
@@ -426,6 +444,7 @@ window.Questions = (function () {
   /* Warm the pools. Easy first (needed within seconds of pressing play),
      then medium and hard, which the rate limiter naturally staggers. */
   function prefetch() {
+    if (vettedOnly) return;
     refill('easy');
     setTimeout(function () { refill('medium'); }, 300);
     setTimeout(function () { refill('hard'); }, 600);
@@ -454,8 +473,26 @@ window.Questions = (function () {
     return DIFFICULTIES.indexOf(difficulty) !== -1;
   }
 
+  /*
+   * Vetted-only mode: serve nothing but the bundled bank. Narrower, but
+   * every answer in it has been checked by hand — worth having in the run-up
+   * to a recording, when a wrong answer key does more harm than a repeat.
+   */
+  function setVettedOnly(on) {
+    vettedOnly = !!on;
+    status = vettedOnly
+      ? { source: 'vetted bank only', live: false, note: '' }
+      : { source: 'offline bank', live: false, note: 'still loading' };
+  }
+
   function next(level) {
     var difficulty = difficultyForLevel(level);
+
+    if (vettedOnly) {
+      var vetted = bankQuestion(difficulty);
+      markSeen(vetted.key);
+      return vetted;
+    }
 
     // The starter tier is bundled only — there is nothing to fetch.
     var q = isFetchable(difficulty)
@@ -481,6 +518,7 @@ window.Questions = (function () {
     difficultyForLevel: difficultyForLevel,
     difficultyLabel: difficultyLabel,
     setPreferredCategories: setPreferredCategories,
+    setVettedOnly: setVettedOnly,
     getStatus: getStatus,
     DIFFICULTIES: DIFFICULTIES
   };

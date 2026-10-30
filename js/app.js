@@ -23,7 +23,7 @@
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 10;
+  var APP_BUILD = 11;
 
   var state = null;
   var settings = Stats.readSettings();
@@ -1086,6 +1086,22 @@
     });
   }
 
+  /*
+   * Say so when a new version has landed. Updates install quietly in the
+   * background, so without this there is no way to tell a phone is current.
+   */
+  function showBuildStamp() {
+    var KEY = 'wwtbam.lastBuild';
+    var previous = null;
+    try { previous = localStorage.getItem(KEY); } catch (e) { /* ignore */ }
+
+    var updated = previous !== null && Number(previous) !== APP_BUILD;
+    $('build-stamp').textContent = 'build ' + APP_BUILD + (updated ? ' · just updated' : '');
+    $('build-stamp').classList.toggle('updated', updated);
+
+    try { localStorage.setItem(KEY, String(APP_BUILD)); } catch (e) { /* ignore */ }
+  }
+
   /* ---------------- question source readout ---------------- */
 
   /*
@@ -1242,7 +1258,7 @@
       if (e.key === 'Enter') lockIn();
     });
 
-    $('build-stamp').textContent = 'build ' + APP_BUILD;
+    showBuildStamp();
 
     Questions.setVettedOnly(settings.vettedOnly);
     Questions.prefetch();

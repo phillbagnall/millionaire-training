@@ -242,6 +242,7 @@ js/fallback-questions.js   bundled offline question bank
 js/fff-questions.js        Fastest Finger First ordering questions
 js/stats.js                localStorage stats and settings
 js/app.js                  game rules, lifelines, UI wiring
+js/update.js               checks for new versions; never mid-game
 manifest.webmanifest       app name, icons and colours when installed
 sw.js                      service worker — caches the app for offline play
 icons/                     home screen icons
@@ -249,10 +250,21 @@ icons/                     home screen icons
 
 ### Updating it after a change
 
-The service worker serves the cached copy first and refreshes in the
-background, so a change you push appears the *second* time the app is
-opened. To see it immediately, close and reopen the app twice, or bump
-`CACHE` in `sw.js` to a new version string.
+Installed phones update themselves. `js/update.js` checks for a new version
+on launch, whenever the app is brought back to the foreground, and every
+half hour while it is open — the foreground check matters because an
+installed app usually resumes from the background without navigating, and
+would otherwise never look.
+
+**An update never interrupts a game.** The new service worker installs but
+deliberately waits; the page only lets it take over when the player is on
+the home or stats screen. A game, a Fastest Finger round or an unread result
+screen all hold it back, and it applies as soon as she leaves them. When a
+new version has landed, the home screen reads *build N · just updated*.
+
+To publish one: change the code, bump `APP_BUILD` in `js/app.js` and `CACHE`
+in `sw.js`, and merge to `main`. Both must change — `CACHE` is what makes the
+worker count as new, and `APP_BUILD` is what the phone displays.
 
 ### If the phone says "This app is already installed" but won't open it
 

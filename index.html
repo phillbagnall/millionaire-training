@@ -233,28 +233,6 @@
 <script src="js/stats.js"></script>
 <script src="js/questions.js"></script>
 <script src="js/app.js"></script>
-<script>
-  // Offline support. Needs https (or localhost); silently skipped otherwise,
-  // e.g. when opening the file directly from disk.
-  if ('serviceWorker' in navigator) {
-    // When a new version takes over, reload once so it is used immediately
-    // rather than on some later launch.
-    // On a first-ever visit there is no controller yet, and the worker
-    // claiming the page is not an update — reloading then would loop.
-    var hadController = !!navigator.serviceWorker.controller;
-    var reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
-      if (!hadController || reloading) return;
-      reloading = true;
-      window.location.reload();
-    });
-
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').then(function (reg) {
-        reg.update();
-      }).catch(function () {});
-    });
-  }
-</script>
+<script src="js/update.js"></script>
 </body>
 </html>

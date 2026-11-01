@@ -23,7 +23,7 @@
 
   /* Shown on the home screen. Bump alongside the service worker cache so it
      is obvious at a glance which version a device is actually running. */
-  var APP_BUILD = 11;
+  var APP_BUILD = 12;
 
   var state = null;
   var settings = Stats.readSettings();
@@ -635,11 +635,37 @@
     });
   }
 
+  /*
+   * Walking away reveals the answer she was sitting on. It is the one place
+   * a question used to disappear unanswered, and it is exactly where the
+   * gap in knowledge is — so show it, and put it in the review.
+   */
   function walkAway() {
     if (!state || state.locked) return;
     stopTimer();
     state.locked = true;
-    endGame('walked');
+
+    var q = state.question;
+    if (!q) return endGame('walked');
+
+    $('confirm-bar').hidden = true;
+    $$('.answer').forEach(function (b) { b.disabled = true; });
+    $$('.answer')[q.correctIndex].classList.add('correct');
+
+    // Not recorded against her category accuracy: she did not answer it.
+    state.review.push({
+      level: state.level,
+      category: q.category,
+      question: q.question,
+      correct: q.answers[q.correctIndex],
+      given: state.selected === null ? null : q.answers[state.selected],
+      wasCorrect: false,
+      walked: true,
+      source: q.source
+    });
+
+    tone(520, 260, 'triangle', 0.05);
+    delay(2600).then(function () { endGame('walked'); });
   }
 
   function endGame(outcome) {
@@ -660,7 +686,9 @@
     else if (outcome === 'walked') winnings = walkAwayAmount(answered);
     else winnings = bankedAmount(answered);
 
-    var correctCount = state.review.filter(function (r) { return r.wasCorrect; }).length;
+    var answeredEntries = state.review.filter(function (r) { return !r.walked; });
+    var correctCount = answeredEntries.filter(function (r) { return r.wasCorrect; }).length;
+    var answeredTotal = answeredEntries.length;
 
     Stats.recordGame({
       winnings: winnings,
@@ -668,11 +696,11 @@
       outcome: outcome,
       practice: state.practice && missed,
       answeredCorrect: correctCount,
-      answeredTotal: state.review.length,
+      answeredTotal: answeredTotal,
       date: Date.now()
     });
 
-    renderResult(outcome, winnings, answered, correctCount);
+    renderResult(outcome, winnings, answered, correctCount, answeredTotal);
     showScreen('screen-result');
   }
 
@@ -895,7 +923,7 @@
 
   /* ---------------- result screen ---------------- */
 
-  function renderResult(outcome, winnings, answered, correctCount) {
+  function renderResult(outcome, winnings, answered, correctCount, answeredTotal) {
     var carriedOn = state.practice && state.firstWrongLevel !== null;
 
     var title = outcome === 'won' ? 'You are a millionaire!'
@@ -922,17 +950,28 @@
     if (carriedOn) {
       practiceEl.hidden = false;
       practiceEl.textContent = 'You carried on and got ' + correctCount +
-        ' of ' + state.review.length + ' right across the whole ladder.';
+        ' of ' + answeredTotal + ' right across the whole ladder.';
     } else {
       practiceEl.hidden = true;
     }
 
     var rows = state.review.map(function (r, n) {
-      var mark = r.wasCorrect ? '<span class="tick">✓</span>' : '<span class="cross">✗</span>';
-      var extra = r.wasCorrect ? '' :
-        '<div class="review-correction">Correct answer: <strong>' +
-        escapeHtml(r.correct) + '</strong> (you said ' + escapeHtml(r.given) + ')</div>';
-      return '<div class="review-row' + (r.wasCorrect ? '' : ' bad') + '">' +
+      var mark = r.walked ? '<span class="walked-mark">&#8212;</span>'
+        : r.wasCorrect ? '<span class="tick">✓</span>'
+        : '<span class="cross">✗</span>';
+
+      var extra = '';
+      if (r.walked) {
+        extra = '<div class="review-correction">You walked away. The answer was <strong>' +
+          escapeHtml(r.correct) + '</strong>' +
+          (r.given ? ' (you were on ' + escapeHtml(r.given) + ')' : '') + '.</div>';
+      } else if (!r.wasCorrect) {
+        extra = '<div class="review-correction">Correct answer: <strong>' +
+          escapeHtml(r.correct) + '</strong> (you said ' + escapeHtml(r.given) + ')</div>';
+      }
+
+      var rowClass = r.walked ? ' walked' : r.wasCorrect ? '' : ' bad';
+      return '<div class="review-row' + rowClass + '">' +
                '<div class="review-head">' + mark +
                  '<span class="review-level">Q' + r.level + '</span>' +
                  '<span class="review-cat">' + escapeHtml(r.category) + '</span>' +

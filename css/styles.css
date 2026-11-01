@@ -778,3 +778,7 @@ h1, h2, h3 { margin: 0 0 .6em; font-weight: 700; letter-spacing: .02em; }
 }
 
 .build-stamp.updated { color: var(--amber); }
+
+/* A question walked away from: neither right nor wrong, but worth reading. */
+.review-row.walked { border-left-color: var(--amber); background: rgba(232, 163, 61, .12); }
+.walked-mark { color: var(--amber); font-weight: 700; }

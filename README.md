@@ -110,7 +110,10 @@ items in their **correct** order; the app shuffles them for display.
 - **Locking in** — pick an answer, then confirm it. The pause before the
   reveal gets longer as the money climbs, as it does on the show.
 - **Walk away** — available at any point, and banks the amount for the last
-  question answered correctly.
+  question answered correctly. The answer to the question walked away from
+  is revealed before the result screen and listed in the review, since that
+  is precisely where the gap in knowledge is. It is not counted against her
+  accuracy: she did not answer it.
 - **Keep playing after a wrong answer** (optional, off by default) — the
   questions carry on to Q15 so a session is always a full fifteen, but the
   run is still scored where it ended. The money, the recorded level and the
